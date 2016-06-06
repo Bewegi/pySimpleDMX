@@ -1,3 +1,4 @@
+from __future__ import print_function
 import serial, sys
 
 START_VAL   = 0x7E
@@ -19,7 +20,10 @@ LABELS = {
 
 
 class DMXConnection(object):
-  def __init__(self, comport = None):
+
+  auto_render = False
+
+  def __init__(self, comport = None, autorender=False):
     '''
     On Windows, the only argument is the port number. On *nix, it's the path to the serial device.
     For example:
@@ -28,14 +32,15 @@ class DMXConnection(object):
         DMXConnection("/dev/ttyUSB0") # Linux
     '''
     self.dmx_frame = [0] * DMX_SIZE
+    self.auto_render = autorender
     try:
       self.com = serial.Serial(comport, baudrate = COM_BAUD, timeout = COM_TIMEOUT)
     except:
       com_name = 'COM%s' % (comport + 1) if type(comport) == int else comport
-      print "Could not open device %s. Quitting application." % com_name
-      sys.exit(0)
+      print("Could not open device %s. Quitting application." % com_name)
+      # sys.exit(0)
 
-    print "Opened %s." % (self.com.portstr)
+    print("Opened %s." % (self.com.portstr))
 
 
   def setChannel(self, chan, val, autorender = False):
@@ -44,12 +49,13 @@ class DMXConnection(object):
     DMX frame, to be rendered the next time the render() method is called.
     '''
     if not 1 <= chan-1 <= DMX_SIZE:
-      print 'Invalid channel specified: %s' % chan-1
+      print('Invalid channel specified: %s' % chan-1)
       return
     # clamp value
     val = max(0, min(val, 255))
     self.dmx_frame[chan-1] = val
-    if autorender: self.render()
+    if autorender or self.auto_render:
+        self.render()
 
   def clear(self, chan = 0):
     '''
@@ -76,6 +82,12 @@ class DMXConnection(object):
     packet.append(END_VAL)
 
     packet = map(chr, packet)
+    data = ''.join(packet)
+
+    # Python 3, need to encode unicode to bytes
+    if sys.version_info >= (3, 0):
+        data = data.encode('ascii')
+    print(data)
     self.com.write(''.join(packet))
 
   def close(self):
